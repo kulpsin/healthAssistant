@@ -1,0 +1,62 @@
+
+services:
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    volumes:
+    - /home/${USER}/.ollama:/root/.ollama
+    - /home/${USER}/models:/models
+    #restart: unless-stopped
+    ports:
+    - 11434:11434
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            count: 1
+            capabilities: [gpu]
+  open-webui: 
+    image: ghcr.io/open-webui/open-webui:cuda
+    container_name: open-webui
+    volumes:
+    - open-webui:/app/backend/data
+    #restart: unless-stopped
+    ports:
+    - 3000:8080
+    extra_hosts:
+    - host.docker.internal:host-gateway
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            count: 1
+            capabilities: [gpu]
+  pgvector:
+    image: kulpsin/pgvector
+    container_name: pgvector
+    pull_policy: never
+    build: ./database/pgvector
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?PostgreSQL password missing for superuser}
+      POSTGRES_TOOL_USER: ${POSTGRES_TOOL_USER:?PostgreSQL tool user missing}
+      POSTGRES_TOOL_PASSWORD: ${POSTGRES_TOOL_PASSWORD:?PostgreSQL password missing for tool user}
+    volumes:
+    - db-data:/var/lib/postgresql/data
+    - ./database/create_database.sql:/docker-entrypoint-initdb.d/001_create_database.sql
+    shm_size: 128mb
+  retrieval:
+    build: ./retrieval
+    ports:
+    - 8000:8000
+    command: fastapi run --host 0.0.0.0 --port 8000 main.py
+    env_file: .env
+    #extra_hosts:
+    # - host.docker.internal:host-gateway
+    
+
+volumes:
+  open-webui:
+  db-data:
