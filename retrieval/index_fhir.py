@@ -105,7 +105,7 @@ class Patient:
             VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING""",
             (patient_id, asserted_date, clinical_status, type, category, criticality, display),
         )
-    
+
     def db_add_condition(self, id, patient_id, encounter_id, clinical_status, verification_status, onset_date, abatement_data, code_display):
         """
         Inserts condition into the DB.
@@ -155,7 +155,7 @@ class Patient:
             VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING""",
             (patient_id, encounter_id, condition_id, status, performed_date, performed_date_end, code_display),
         )
-    
+
     def db_add_immunization(self, patient_id, encounter_id, date, status, vaccine_display, was_given, primary_source):
         """
         Inserts immunization into the DB.
@@ -165,6 +165,16 @@ class Patient:
             VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING""",
             (patient_id, encounter_id, date, status, vaccine_display, was_given, primary_source),
         )
+
+
+def datetime_from_isoformat(dt: str | None) -> datetime.datetime:
+    """
+    Create a datetime object from iso date and return it.
+    - Timezone information is removed, using local time here
+    - Adding 7 years to each date, to artificially make the dataset appear more recent
+    """
+    return datetime.datetime.fromisoformat(dt).replace(tzinfo=None) + datetime.timedelta(days=7*365)
+
 
 def parse_fhir(entry: dict):
     """
@@ -181,8 +191,8 @@ def parse_fhir(entry: dict):
                 patient = Patient(
                     res['id'],
                     res['gender'],
-                    datetime.datetime.fromisoformat(res['birthDate']).replace(tzinfo=None),
-                    res.get('deceasedDateTime', None),
+                    datetime_from_isoformat(res['birthDate']),
+                    datetime_from_isoformat(res['deceasedDateTime']) if 'deceasedDateTime' in res else None,
                     f"{res['name'][0]['given'][0]}.{res['name'][0]['family']}@localhost",  # email
                 )
 
@@ -193,8 +203,8 @@ def parse_fhir(entry: dict):
                     res['status'],
                     res['class']['code'],
                     res['type'][0]['text'],
-                    datetime.datetime.fromisoformat(res['period']['start']).replace(tzinfo=None),
-                    datetime.datetime.fromisoformat(res['period']['end']).replace(tzinfo=None),
+                    datetime_from_isoformat(res['period']['start']),
+                    datetime_from_isoformat(res['period']['end']),
                     res['reason']['coding'][0]['display'] if 'reason' in res else None,
                 )
 
@@ -219,7 +229,7 @@ def parse_fhir(entry: dict):
                     res['id'],
                     res['subject']['reference'].split(':')[2],
                     res['encounter']['reference'].split(':')[2],
-                    datetime.datetime.fromisoformat(res['effectiveDateTime']).replace(tzinfo=None),
+                    datetime_from_isoformat(res['effectiveDateTime']),
                     res['status'],
                     display,
                     value,
@@ -239,8 +249,8 @@ def parse_fhir(entry: dict):
                     res['context']['reference'].split(':')[2],
                     res['clinicalStatus'],
                     res['verificationStatus'],
-                    res['onsetDateTime'],
-                    res.get('abatementDateTime', None),
+                    datetime_from_isoformat(res['onsetDateTime']),
+                    datetime_from_isoformat(res['abatementDateTime']) if 'abatementDateTime' in res else None,
                     res['code']['coding'][0]['display']
                 )
 
@@ -251,8 +261,8 @@ def parse_fhir(entry: dict):
                     res['encounter']['reference'].split(':')[2],
                     res['reasonReference']['reference'].split(':')[2] if 'reasonReference' in res else None,
                     res['status'],
-                    datetime.datetime.fromisoformat(res['performedDateTime'] if 'performedDateTime' in res else res['performedPeriod']['start']).replace(tzinfo=None),
-                    datetime.datetime.fromisoformat(res['performedPeriod']['end']).replace(tzinfo=None) if 'performedPeriod' in res else None,
+                    datetime_from_isoformat(res['performedDateTime'] if 'performedDateTime' in res else res['performedPeriod']['start']),
+                    datetime_from_isoformat(res['performedPeriod']['end']) if 'performedPeriod' in res else None,
                     res['code']['coding'][0]['display'],
                 )
 
@@ -266,7 +276,7 @@ def parse_fhir(entry: dict):
                 patient.db_add_immunization(
                     res['patient']['reference'].split(':')[2],
                     res['encounter']['reference'].split(':')[2],
-                    datetime.datetime.fromisoformat(res['date']).replace(tzinfo=None),
+                    datetime_from_isoformat(res['date']),
                     res['status'],
                     res['vaccineCode']['coding'][0]['display'],
                     not res['wasNotGiven'],
@@ -291,8 +301,8 @@ def parse_fhir(entry: dict):
                     res['context']['reference'].split(':')[2],
                     res['status'],
                     res['category'][0]['coding'][0]['display'],
-                    datetime.datetime.fromisoformat(res['period']['start']).replace(tzinfo=None),
-                    datetime.datetime.fromisoformat(res['period']['end']).replace(tzinfo=None) if 'end' in res['period'] else None,
+                    datetime_from_isoformat(res['period']['start']),
+                    datetime_from_isoformat(res['period']['end']) if 'end' in res['period'] else None,
                     details,
                 )
 
@@ -323,7 +333,7 @@ def parse_fhir(entry: dict):
                 patient.db_add_medication_request(
                     res['patient']['reference'].split(':')[2],
                     res['context']['reference'].split(':')[2],
-                    datetime.datetime.fromisoformat(res['dateWritten']).replace(tzinfo=None),
+                    datetime_from_isoformat(res['dateWritten']),
                     res['medicationCodeableConcept']['coding'][0]['display'],
                     dosage_instruction,
                 )
@@ -331,7 +341,7 @@ def parse_fhir(entry: dict):
             case 'AllergyIntolerance':
                 patient.db_add_allergy_intolerance(
                     res['patient']['reference'].split(':')[2],
-                    datetime.datetime.fromisoformat(res['assertedDate']).replace(tzinfo=None),
+                    datetime_from_isoformat(res['assertedDate']),
                     res['clinicalStatus'],
                     res['type'],
                     res['category'][0],  # Saving only first category
@@ -341,8 +351,6 @@ def parse_fhir(entry: dict):
 
             case _:
                 raise Exception(f'Not handled: {res["resourceType"]}')
-
-
 
 def valid_json_file(path):
     """
@@ -362,7 +370,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Index FHIR resources to a database.")
     parser.add_argument("json_file", type=valid_json_file, help="Path to the json file containing the FHIR resources.")
     args = parser.parse_args()
-    
+
     with open(args.json_file, 'r') as f:
         data = json.load(f)
     try:
