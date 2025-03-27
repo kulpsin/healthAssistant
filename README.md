@@ -21,7 +21,9 @@ You can also browse [Ollama library](https://ollama.com/library) for their hoste
 You can use for example the following curl command to insert a FHIR-json into database:
 
 ```bash
-curl -d @path/to/json/0006a28d-fb47-40cf-afa8-32360c384798.json -H 'Content-Type: application/json' localhost:8000/reindex
+curl localhost:8000/reindex\
+  -d @path/to/json/0006a28d-fb47-40cf-afa8-32360c384798.json\
+  -H 'Content-Type: application/json' 
 ```
 
 Note that FHIR JSON format is not fully supported yet, only following files have been tested to work:
