@@ -1,14 +1,24 @@
 # Fresh install instructions
+
+Clone the repository:
 ```bash
 git clone https://github.com/kulpsin/virtualDoc
-cd virtualDoc
+
+```
+Clone the [pgvector](https://github.com/pgvector/pgvector) repository:
+```bash
+cd virtualDoc/database
+clone https://github.com/pgvector/pgvector.git
+cd ..
+```
+Modify the environment variables, build and start containers.
+```bash
 cp .env.template .env
 # Edit .env file
 docker compose up -d --build
 ```
-Create admin account.
 
-
+Browse to [localhost:3000](http://localhost:3000/) and create an admin account.
 
 # Ollama models
 
