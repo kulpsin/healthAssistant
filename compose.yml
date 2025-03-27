@@ -25,6 +25,15 @@ services:
     #restart: unless-stopped
     ports:
     - 3000:8080
+    environment:
+      ENABLE_OLLAMA_API: True
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      ENABLE_OPENAI_API: False
+      #VECTOR_DB: pgvector
+      #PGVECTOR_DB_URL http://pgvector:5432/
+      #RAG_EMBEDDING_ENGINE: ollama
+      #RAG_EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      #RAG_OLLAMA_BASE_URL: http://host.docker.internal:11434
     extra_hosts:
     - host.docker.internal:host-gateway
     deploy:
